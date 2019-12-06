@@ -13,42 +13,31 @@ namespace Day6
         static Body root;
         static void Main()
         {
-            //FOR PART2
-            //Should I find the first common orbit, rebase the tree and then sum the jumps from each? Do
-            //If I move the county stuff into the nodes no need to rebase
-
             var input = File.ReadLines("Task1.txt").ToList();
 
+            //This whole bit feels horribly inefficent but it works. 
             bodies = new List<string[]>();
             foreach (string s in input)
             {
                 var p = s.Split(')');
                 bodies.Add(p);
             }
-
             root = new Body("COM");
             BuildTree("COM");
 
-            //Console.WriteLine(root.SumChild().ToString());
+            //PART ONE
+            Console.WriteLine(root.SumChild().ToString());
 
+            //PART TWO
+            //Could do some more advance pathfinding but given the constraints of the propblem 1) Everything hangs off the root node 2) each node can only have one parent 
+            //Then we know the shortest path from YOU to SAN is the first node their paths to the root intersect. 
 
             var youPath = root.Find("YOU").PathToRoot();
             var sanPath = root.Find("SAN").PathToRoot();
             var intersect = youPath.Intersect(sanPath);
 
-            //foreach(string s in intersect)
-            //{
-            //    Console.WriteLine(s);
-            //}
+            int r = youPath.Except(intersect).Count() + sanPath.Except(intersect).Count(); 
 
-            Body newRoot = root.Find(intersect.First());
-
-            newRoot.MakeRoot();
-
-            int r = newRoot.Find("YOU").SumChild();
-            r += newRoot.Find("SAN").SumChild();
-            //This method includes "jumps" to YOU and SANs so we'd be off by 2.
-            r -= 2;
             Console.WriteLine(r.ToString());
 
             Console.ReadLine();
