@@ -8,10 +8,6 @@ using System.Threading.Tasks;
 
 namespace Day9
 {
-    //public enum OppCodes { Sum, Multiply, Input, Output, JumpTrue, JumpFalse, LessThan, Equals, Exit = 99 }
-    //public enum Modes { Position, Immediate, Relative }
-
-
     public class IntCodeVM
     {
         long pCounter;
@@ -290,7 +286,8 @@ namespace Day9
         long ReadOffset()
         {
             //Console.WriteLine(String.Format("Step {0}: Reading {1} from address {2}", pCounter, Memory[Memory[pCounter]], Memory[pCounter]));
-            return Memory[Memory[pCounter + pOffset]];
+            long offset = Memory[pCounter] + pOffset;
+            return Memory[offset];
         }
 
         //Write to Memoery 
@@ -325,8 +322,9 @@ namespace Day9
 
         void WriteToOffsetPosition(long val)
         {
+            long offset = Memory[pCounter] + pOffset;
             //Console.WriteLine(String.Format("Step {0}: Writing {1} to memory to address {2}", pCounter, bus, Memory[pCounter]));
-            Memory[Memory[pCounter + pOffset]] = val;
+            Memory[offset] = val;
         }
     }
 }
