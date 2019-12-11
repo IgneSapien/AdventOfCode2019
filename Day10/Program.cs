@@ -18,7 +18,7 @@ namespace Day10
         static void Main()
         {
             List<Point> Astroids = new List<Point>();
-            var input = File.ReadLines(@"./Inputs/BigTest.txt");
+            var input = File.ReadLines(@"./Inputs/Part1.txt");
             int inputY = input.Count();
             int inputX = input.First().Length;
 
@@ -40,71 +40,70 @@ namespace Day10
             Console.WriteLine();
 
             //Part1(Astroids);
-            //Best roid in part one is 11,11
-            //Best roid in Big test is 11,13
+            //Best roid in part one is 11,11 221
+            //Best roid in Big test is 11,13 210 
+            //Big test 200 = 8,2
+            Part2(Astroids, (11, 11));
 
-            //Point bigLaser = (11, 11);
-            Point bigLaser = (11, 13);
-
-            int startX = bigLaser.X;
-
-            //Get perminter. Easier ways to do this but wanted to try using the Rectangle 
-            //Rectangle rectangle = new Rectangle((0, 0), (inputX, inputY));
-            //var perimeter = rectangle.PerimeterPositions();
-            //List<Point> shift = new List<Point>();
-            //foreach(Point p in perimeter)
-            //{
-            //    if(p.Y == 0 && p.X < startX)
-            //    {
-            //        shift.Add(p);
-            //    }
-            //}
-            //List<Point> targets = perimeter.Except(shift).ToList();
-            //targets.AddRange(shift);
-
-            bool FIREEVERYTHING = true;
-            List<Point> blownUp = new List<Point>();
-
-            while(FIREEVERYTHING)
-            {
-                List<Point> blownUpThisRound = new List<Point>();
-                for(double d = 0; d <= 360; d++)
-                {
-                    double a = d + 90;
-                    AngleSlope slope = new AngleSlope(bigLaser, a,(inputX,inputY));
-                    //Get all whole points on slope
-                    List<Point> slopePoints = slope.WholePointsOnSlope();
-                    //Get any astroids on this point
-                    //This could be much more effecent but meh
-                    List<Point> comp = slopePoints.Intersect(Astroids).ToList();
-                    
-                    //IT'S A HIT?!
-                    if (comp.Count() > 0)
-                    {
-                        //if there's more than one order by distinace 
-                        if (comp.Count() > 1)
-                        {
-                            comp = comp.OrderBy(x => Dist(slope.StartP, x)).ToList();
-                        }
-                        //Check if the first visable astroid is the one we're looking for add it to the list if it is
-                        //If we know this astroid can't see another then we know that astroid can't see this.
-                        //We can also roll that knowlage down the list
-                        //But this would need us to set up everything first which I don't think is currently required. 
-                        //I could spin each of these off into a Task as well but it only takes a few seconds to run on the input.
-                        Point hit = comp.First();
-                        Console.WriteLine(String.Format("{0} went boom", hit.ToString()));
-                        blownUpThisRound.Add(comp.First());
-                    }
-                }
-                blownUp.AddRange(blownUpThisRound);
-                Astroids = Astroids.Except(blownUpThisRound).ToList();
-                if(Astroids.Count() < 0)
-                {
-                    FIREEVERYTHING = false;
-                }
-            }
-            Console.WriteLine(String.Format("200th Blowny upy: {0}", blownUp[200].ToString()));
             Console.ReadLine();
+        }
+
+
+        private static void Part2(List<Point> Astroids, Point BigFingL)
+        {
+            Astroids.Remove(BigFingL);
+
+            //Since the puzzle input and test have 200+ visable astroid from the stations then we don't need to loop the bellow even if it would be fun
+
+            List<Point> blownUpThisRound;
+            Dictionary<double, List<Point>> angleRoids = GetRoidsByAngle(Astroids, BigFingL);
+
+            
+
+            List<(double angle, Point point)> visRoids = new List<(double, Point)>();
+
+            //This time we want to order the the visable roids by the angle so we'll keep the key
+            foreach (var kvp in angleRoids)
+            {
+                visRoids.Add((kvp.Key, kvp.Value.OrderBy(x => Dist(BigFingL, x)).ToList().First()));
+            }
+
+            foreach (var r in visRoids)
+            {
+                Console.WriteLine(String.Format("Orignal, {0}, {1}, {2}", r.point.X.ToString(), r.point.Y.ToString(), r.angle.ToString()));
+            }
+
+            visRoids = visRoids.Select(r => (ConvertAngle(r.angle), r.point)).ToList();
+
+
+            foreach (var r in visRoids)
+            {
+                Console.WriteLine(String.Format("Adjusted, {0}, {1}, {2}", r.point.X.ToString(), r.point.Y.ToString(), r.angle.ToString()));
+            }
+
+
+            blownUpThisRound = visRoids.OrderBy(r => r.angle).Select(or => or.point).ToList();
+
+            for (int i = 0; i < blownUpThisRound.Count(); i++)
+            {
+                Console.WriteLine(String.Format("{0} Blowny upy: {1}", (i + 1).ToString(), blownUpThisRound[i].ToString()));
+            }
+
+
+            Console.ReadLine();
+
+        }
+
+        private static double ConvertAngle(double angle)
+        {
+            //if the angle is negative add 360 to it to get it relative to the counter clockwise posative angle 
+            angle = angle < 0 ? 360 + angle : angle;
+            //Rotate we're facing "down" and starting from the x 
+            //This is horrible but it works on the test input
+            angle += 91;
+            angle = angle > 360 ? angle - 360 : angle;
+            angle -= 1;
+            return angle;
         }
 
         private static void Part1(List<Point> Astroids)
@@ -112,46 +111,53 @@ namespace Day10
             Dictionary<Point, int> roidCount = new Dictionary<Point, int>();
             foreach (Point seekerRoid in Astroids)
             {
-                List<Point> visableRoids = new List<Point>();
-                foreach (Point roidToFind in Astroids)
-                {
+                Dictionary<double, List<Point>> angleRoids = GetRoidsByAngle(Astroids, seekerRoid);
 
-                    if (seekerRoid == roidToFind)
-                    {
-                        //there's easier ways of doing this but I don't want to mess with the main list
-                        continue;
-                    }
-                    PointSlope slope = new PointSlope(seekerRoid, roidToFind);
-                    //Get all whole points on slope
-                    List<Point> slopePoints = slope.WholePointsOnSlope();
-                    //Get any astroids on this point
-                    List<Point> comp = slopePoints.Intersect(Astroids).ToList();
-                    //if there's more than one order by distinace 
-                    if (comp.Count() > 0)
-                    {
-                        if (comp.Count() > 1)
-                        {
-                            comp = comp.OrderBy(x => Dist(slope.StartP, x)).ToList();
-                        }
-                        //Check if the first visable astroid is the one we're looking for add it to the list if it is
-                        //If we know this astroid can't see another then we know that astroid can't see this.
-                        //We can also roll that knowlage down the list
-                        //But this would need us to set up everything first which I don't think is currently required. 
-                        //I could spin each of these off into a Task as well but it only takes a few seconds to run on the input.
-                        if (comp.First() == roidToFind)
-                        {
-                            visableRoids.Add(roidToFind);
-                        }
-                    }
-                }
+                List<Point> visRoids = GetVisRoids(seekerRoid, angleRoids);
 
-                roidCount.TryAdd(seekerRoid, visableRoids.Count());
+                roidCount.TryAdd(seekerRoid, visRoids.Count());
             }
-
-
 
             KeyValuePair<Point, int> bestRoid = roidCount.OrderByDescending(x => x.Value).First();
             Console.WriteLine(String.Format("Best roid {0} with count {1}", bestRoid.Key.ToString(), bestRoid.Value.ToString()));
+        }
+
+        private static List<Point> GetVisRoids(Point seekerRoid, Dictionary<double, List<Point>> angleRoids)
+        {
+            //Get the first roid from the list per angles; 
+            List<Point> visRoids = new List<Point>();
+            foreach (var kvp in angleRoids)
+            {
+                visRoids.Add(kvp.Value.OrderBy(x => Dist(seekerRoid, x)).ToList().First());
+            }
+            return visRoids;
+        }
+
+        private static Dictionary<double, List<Point>> GetRoidsByAngle(List<Point> Astroids, Point seekerRoid)
+        {
+            //Get vector of all roids relative to seeker
+            Dictionary<Point, Point> rebasedRoids = Astroids.ToDictionary(p => p - seekerRoid, p => p);
+            Dictionary<double, List<Point>> angleRoids = new Dictionary<double, List<Point>>();
+            //Remove the new origin 
+            rebasedRoids.Remove((0, 0));
+
+            foreach (var kvp in rebasedRoids)
+            {
+                double radians = Math.Atan2(kvp.Key.Y, kvp.Key.X);
+                double angle = radians * (180 / Math.PI);
+                //A positive return value represents a counterclockwise angle from the x-axis; a negative return value represents a clockwise angle.
+                if (!angleRoids.TryGetValue(angle, out List<Point> roids))
+                {
+                    roids = new List<Point>() { kvp.Value };
+                    angleRoids.Add(angle, roids);
+                }
+                else
+                {
+                    roids.Add(kvp.Value);
+                }
+            }
+            //Group Roids on the same angle 
+            return angleRoids;
         }
 
         static int Dist(Point p1, Point p2)
