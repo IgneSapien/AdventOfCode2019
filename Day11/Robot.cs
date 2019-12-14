@@ -63,7 +63,7 @@ namespace Day11
             Console.WriteLine("Finsihed");
         }
 
-        void Scan()
+        async void Scan()
         {
             if (!map.TryGetValue(Location, out long input))
             {
@@ -72,34 +72,35 @@ namespace Day11
                 map.Add(Location, input);
             }
 
-            Brain.AddInput(input);
+
+            await Brain.WriteToInput.WriteAsync(input);
             Mode = Modes.Paint;
             //What to see if we've got any wait condiation issues
             //Turns out we do. Will have to look into that this delay is enough 
-            Thread.Sleep(10);
+            //Thread.Sleep(10);
         }
 
         void Paint()
         {
             long outPut;
-            while (!Brain.Output.TryTake(out outPut))
+            while (!Brain.ReadFromOutput.TryRead(out outPut))
             {
-                //wait for output if there is none
-            }
 
+            }
             map[Location] = outPut;
             Mode = Modes.Move;
+            
         }
 
         void Move()
         {
             long outPut;
-            while (!Brain.Output.TryTake(out outPut))
+            while (!Brain.ReadFromOutput.TryRead(out outPut))
             {
-                //Waitng for output
+
             }
 
-            if(outPut == 0)
+            if (outPut == 0)
             {
                 //Think this is right, will soon find out.
                 Facing -= 2;
@@ -113,6 +114,7 @@ namespace Day11
             Location += Facing;
 
             Mode = Modes.Scan;
+      
         }
 
         void DrawMap()

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace Day11
@@ -15,8 +16,6 @@ namespace Day11
 
         bool run;
 
-        public bool InputRequired { get; private set; }
-
         //Working memory, wiped when a program is loaded
         public long[] Memory { get; private set; }
 
@@ -24,17 +23,26 @@ namespace Day11
         //Might want to turn this to a dictoanry 
         List<long[]> programs;
 
-        //Input/Output queues that are thread safe(?)
-        BlockingCollection<long> Input;
-        public BlockingCollection<long> Output { get; private set; }
+
+        readonly Channel<long> input_channel = Channel.CreateUnbounded<long>();
+        readonly Channel<long> output_channel = Channel.CreateUnbounded<long>();
+
+        public ChannelWriter<long> WriteToInput { get; private set; }
+        ChannelReader<long> ReadFromInput { get; set; }
+        ChannelWriter<long> WritetoOutput { get; set; }
+        public ChannelReader<long> ReadFromOutput { get; private set; }
 
         public IntCodeVM(List<long[]> intialPrograms)
         {
             run = false;
-            InputRequired = false;
-            Input = new BlockingCollection<long>();
-            Output = new BlockingCollection<long>();
             programs = intialPrograms;
+
+            WriteToInput = input_channel.Writer;
+            ReadFromInput = input_channel.Reader;
+
+            WritetoOutput = output_channel.Writer;
+            ReadFromOutput = output_channel.Reader;
+
             //Not sure we should load the program here, I'll often want to run the VM on a loop to try diffrent inputs so it needs loading before running each time.
             //LoadProgram();
         }
@@ -55,12 +63,6 @@ namespace Day11
         public void AddProgram(long[] program)
         {
             programs.Add(program);
-        }
-
-        public void AddInput(long input)
-        {
-            InputRequired = false;
-            Input.Add(input);
         }
 
 
@@ -106,13 +108,22 @@ namespace Day11
 
 
         //Clear down the input/output queue if you want to start a program fresh.
-        public void ClearInputOutput()
+        public async void ClearInputOutput()
         {
-            while (Input.TryTake(out _))
+
+            //TODO: There's a read all thing you can use to grab an enum of everything
+            while (await ReadFromInput.WaitToReadAsync())
             {
+                while (ReadFromInput.TryRead(out long _))
+                {
+                }
             }
-            while (Output.TryTake(out _))
+
+            while (await ReadFromOutput.WaitToReadAsync())
             {
+                while (ReadFromOutput.TryRead(out long _))
+                {
+                }
             }
         }
 
@@ -142,15 +153,15 @@ namespace Day11
         void OppInput(string param)
         {
             //Console.WriteLine("Excuting OppInput");
-            Write(param[2], ReadIn());
+            Write(param[2], ReadIn().Result);
             pCounter += 1;
         }
 
         //04
-        void OppOutput(string param)
+        async void OppOutput(string param)
         {
             //Console.WriteLine("Excuting OppOutput");
-            Output.Add(Read(param[2]));
+            await WritetoOutput.WriteAsync(Read(param[2]));
             pCounter += 1;
         }
 
@@ -236,19 +247,9 @@ namespace Day11
         //The instuctions that make up the OppCodes
 
         //IO
-        long ReadIn()
+        async Task<long> ReadIn()
         {
-            long r;
-            while (!Input.TryTake(out r))
-            {
-                //If we can't grab the input from the queue we'll wait
-                //We'll flag input as being needed to make working with the VM from outside easier 
-                InputRequired = true;
-                //Don't want it to keep setting InputRequired but I don't know if this is the best way of doing it.
-                Thread.Sleep(50);
-            }
-            InputRequired = false;
-            return r;
+            return await ReadFromInput.ReadAsync();
         }
 
 
