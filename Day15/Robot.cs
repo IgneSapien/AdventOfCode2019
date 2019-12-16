@@ -5,9 +5,7 @@ using System.Threading.Tasks;
 using SadRogue.Primitives;
 using System.Linq;
 using System.Threading;
-using System.Net.Http.Headers;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
+
 
 namespace Day15
 {
@@ -55,10 +53,50 @@ namespace Day15
                 AttemptMove();
                 ProcessMove();
             }
-            DrawMap();
+            DrawMap(false);
 
-            //Part2 float the map 
+            //Part2 flood the map 
+            int m = 0;
+            while(true)
+            {
+                m++;
+                Console.WriteLine("Minutes: {0}", m);
+                //Get tiles with oxegan in them
+                List<Point> oxTiles = map.Where(p => p.Value == 2).Select(p => p.Key).ToList();
+
+                foreach(Point p in oxTiles)
+                {
+                    List<Point> n = new List<Point>();
+
+                    n.Add(p + Direction.Up);
+                    n.Add(p + Direction.Down);
+                    n.Add(p + Direction.Left);
+                    n.Add(p + Direction.Right);
+
+                    foreach(Point np in n)
+                    {
+                        if(map.ContainsKey(np))
+                        {
+                            if(map[np] == 1)
+                            {
+                                map[np] = 2;
+                            }
+                        }
+                    }
+                }
+
+                DrawMap(false);
+
+                List<Point> floorTiles = map.Where(p => p.Value == 1).Select(p => p.Key).ToList();
+                if(floorTiles.Count == 0)
+                {
+                    Console.WriteLine("All floor tiles filled");
+                    break;
+                }
+            }
+
         }
+
 
         private  void ProcessMove()
         {
@@ -148,7 +186,7 @@ namespace Day15
         }
 
 
-        void DrawMap()
+        void DrawMap(bool showBot = true)
         {
             //Console.Clear();
             //I was off by one! The path containts the starting point which isn't a "move" 
@@ -172,7 +210,7 @@ namespace Day15
                 StringBuilder sb = new StringBuilder();
                 for (int x = minX; x <= maxX ; x++)
                 {
-                    if (Location == (x, y))
+                    if (Location == (x, y) && showBot)
                     {
                         sb.Append("D");
                     }
@@ -180,18 +218,35 @@ namespace Day15
                     {
                         if (map.TryGetValue((x,y), out long output))
                         {
-                            if (path.Contains((x, y)))
+                            if (path.Contains((x, y)) && showBot)
                             {
+                                //Adds a coloured path red\.\reset
                                 sb.Append("\u001b[41m.\u001b[0m");
                             }
                             else
                             {
-                                sb.Append(output == 0 ? "#" : output == 1 ? "." : "X");
+                                if (showBot)
+                                {
+                                    sb.Append(output == 0 ? "#" : output == 1 ? "." : "X");
+                                }
+                                else
+                                {
+                                    switch (output)
+                                    {
+                                        case 0: sb.Append("#"); break;
+                                        case 1: sb.Append("."); break;
+                                        case 2: sb.Append("O"); break;
+                                        default:
+                                            Console.WriteLine("Unknonw tile");
+                                            break;
+                                    };
+                                }
                             }
                         }
                         else
                         {
-                            sb.Append(" ");
+                            //Assume if we're not showing the bot we show unknow tiles as walls
+                            sb.Append(showBot ? " " : "#");
                         }
                     }
                 }
@@ -200,7 +255,5 @@ namespace Day15
 
             //TODO: vector againts the min so we can start from 0,0?
         }
-
-
     }
 }
